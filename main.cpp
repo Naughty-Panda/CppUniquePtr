@@ -202,6 +202,20 @@ public:
 	void AdditionalCards(GenericPlayer& player);
 };
 
+class Game {
+
+private:
+	Deck _deck;
+	House _house;
+	std::vector<Player> _players;
+
+public:
+	Game(const std::vector<std::string>& names);
+	~Game() {}
+
+	void Play();
+};
+
 //////////////////////////////////////////
 //	Card methods
 //////////////////////////////////////////
@@ -286,7 +300,20 @@ std::ostream& operator<< (std::ostream& ostr, const GenericPlayer& player) {
 
 	ostr << player._name << ":\t";
 
-	std::vector<Card*>::iterator card;
+	std::vector<Card*>::const_iterator card;
+
+	if (!player._hand.empty()) {
+		for (card = player._hand.begin(); card != player._hand.end(); ++card) {
+			ostr << *(*card) << "\t";
+		}
+
+		if (player.GetValue() != 0) {
+			std::cout << '(' << player.GetValue() << ')';
+		}
+	}
+	else {
+		ostr << "<empty>\n";
+	}
 
 	return ostr;
 }
@@ -354,6 +381,93 @@ void Deck::AdditionalCards(GenericPlayer& player) {
 	}
 }
 
+//////////////////////////////////////////
+//	Game methods
+//////////////////////////////////////////
+
+Game::Game(const std::vector<std::string>& names) {
+
+	std::vector<std::string>::const_iterator name;
+
+	for (name = names.begin(); name != names.end(); ++name) {
+		_players.push_back(Player(name->c_str()));
+	}
+
+	srand(static_cast<unsigned int>(time(NULL)));
+	_deck.Populate();
+	_deck.Shuffle();
+}
+
+void Game::Play() {
+
+	std::vector<Player>::iterator player;
+	for (size_t i = 0; i < 2; ++i) {
+		for (player = _players.begin(); player != _players.end(); ++player) {
+
+			_deck.Deal(*player);
+		}
+		_deck.Deal(_house);
+	}
+
+	_house.FlipFirstCard();
+
+	for (player = _players.begin(); player != _players.end(); ++player) {
+
+		std::cout << *player << '\n';
+	}
+
+	std::cout << _house << '\n';
+
+	for (player = _players.begin(); player != _players.end(); ++player) {
+
+		_deck.AdditionalCards(*player);	
+	}
+
+	_house.FlipFirstCard();
+	std::cout << _house << '\n';
+
+	_deck.AdditionalCards(_house);
+
+	if (_house.IsBusted()) {
+
+		// Players wins
+		for (player = _players.begin(); player != _players.end(); ++player) {
+
+			if (!player->IsBusted()) {
+				player->Win();
+			}
+		}
+
+	}
+	else {
+
+		// Compares scores for players and house
+		for (player = _players.begin(); player != _players.end(); ++player) {
+
+			if (!player->IsBusted()) {
+
+				if (player->GetValue() > _house.GetValue()) {
+					player->Win();
+				}
+				else if (player->GetValue() < _house.GetValue()) {
+
+					player->Lose();
+				}
+				else {
+					player->Push();
+				}
+			}
+		}
+
+		for (player = _players.begin(); player != _players.end(); ++player) {
+			
+			player->Clear();
+		}
+
+		_house.Clear();
+	}
+}
+
 
 //////////////////////////////////////////
 //	Main
@@ -399,7 +513,13 @@ int main() {
 	//	Blackjack
 	//////////////////////////////////////////
 
-	Deck* deck = new Deck;
+	std::vector<std::string> players;
+	players.push_back("First Player");
+	players.push_back("Second Player");
+	players.push_back("Third Player");
+
+	Game game(players);
+	game.Play();
 
 	return 0;
 }
