@@ -41,6 +41,16 @@ std::ostream& operator<< (std::ostream& ostr, const Date& date) {
 	return ostr;
 }
 
+bool operator> (const Date& d1, const Date& d2) {
+
+	if (d1.GetYear() > d2.GetYear()) return true;
+	if (d1.GetYear() < d2.GetYear()) return false;
+	if (d1.GetMonth() > d2.GetMonth()) return true;
+	if (d1.GetMonth() < d2.GetMonth()) return false;
+	if (d1.GetDay() > d2.GetDay()) return true;
+	if (d1.GetDay() < d2.GetDay()) return false;
+}
+
 //////////////////////////////////////////
 //	7.2
 //////////////////////////////////////////
@@ -53,12 +63,7 @@ std::ostream& operator<< (std::ostream& ostr, const std::unique_ptr<Date>& date)
 
 auto CompareDates(const std::unique_ptr<Date>& d1, const std::unique_ptr<Date>& d2) {
 
-	//TODO: fix
-	if (d1->GetYear() > d2->GetYear()) return &d1;
-	if (d1->GetMonth() > d2->GetMonth()) return &d1;
-	if (d1->GetDay() > d2->GetDay()) return &d1;
-
-	return &d2;
+	return (*d1.get() > *d2.get()) ? &d1 : &d2;
 }
 
 void SwapUniquePointers(std::unique_ptr<Date>& d1, std::unique_ptr<Date>& d2) {
@@ -81,7 +86,7 @@ enum class ECardSuit : uint8_t {
 	Undefined = 0U
 };
 
-ECardSuit operator++(ECardSuit suit) {
+ECardSuit operator++(const ECardSuit& suit) {
 
 	switch (suit) {
 	case ECardSuit::Clubs:		return ECardSuit::Diamonds;
@@ -93,6 +98,22 @@ ECardSuit operator++(ECardSuit suit) {
 	}
 }
 
+std::ostream& operator<< (std::ostream& ostr, const ECardSuit& suit) {
+
+	char SuitSymbol;
+	switch (suit) {
+
+	case ECardSuit::Clubs:		SuitSymbol = 'C'; break;
+	case ECardSuit::Diamonds:	SuitSymbol = 'D'; break;
+	case ECardSuit::Hearts:		SuitSymbol = 'H'; break;
+	case ECardSuit::Spades:		SuitSymbol = 'S'; break;
+	default:					SuitSymbol = 'X'; break;
+	}
+
+	ostr << SuitSymbol;
+	return ostr;
+}
+
 enum class ECardValue : uint8_t {
 
 	Two = 2U, Three, Four, Five, Six, Seven, Eight, Nine, Ten,
@@ -100,7 +121,7 @@ enum class ECardValue : uint8_t {
 	Undefined = 0U
 };
 
-ECardValue operator++(ECardValue val) {
+ECardValue operator++(const ECardValue& val) {
 
 	switch (val) {
 	case ECardValue::Ace:		return ECardValue::Two;
@@ -121,12 +142,34 @@ ECardValue operator++(ECardValue val) {
 	}
 }
 
+std::ostream& operator<< (std::ostream& ostr, const ECardValue& val) {
+	/*
+	std::string CardValue;
+
+	switch (val) {
+	case ECardValue::Ace:	CardValue = 'A'; break;
+	case ECardValue::Two:	CardValue = '2'; break;
+	case ECardValue::Three: CardValue = '3'; break;
+	case ECardValue::Four:	CardValue = '4'; break;
+	case ECardValue::Five:	CardValue = '5'; break;
+	case ECardValue::Six:	CardValue = '6'; break;
+	case ECardValue::Seven: CardValue = '7'; break;
+	case ECardValue::Eight: CardValue = '8'; break;
+	case ECardValue::Nine:	CardValue = '9'; break;
+	case ECardValue::Ten:	CardValue = "10"; break;
+	default:				CardValue = '0'; break;
+	}
+	*/
+	ostr << static_cast<int>(val);
+	return ostr;
+}
+
 class Card {
 
 protected:
 	ECardSuit _suit{ ECardSuit::Undefined };
 	ECardValue _value{ ECardValue::Undefined };
-	bool _bVisible{ false };
+	bool _bVisible{ true };
 
 public:
 	Card(ECardSuit suit, ECardValue val) : _suit(suit), _value(val) {}
@@ -160,6 +203,7 @@ public:
 	GenericPlayer(const char* name) : _name(name) {}
 	virtual ~GenericPlayer() override {}
 
+	std::string GetName() const { return _name; }
 	virtual bool IsHitting() const = 0;
 	bool IsBusted() const { return GetValue() > 21U ? true : false; }
 	void Bust() const { std::cout << _name << " busted!\n"; }
@@ -220,17 +264,19 @@ public:
 //	Card methods
 //////////////////////////////////////////
 
-std::ostream& operator << (std::ostream& ostr, const Card& card) {
+std::ostream& operator<< (std::ostream& ostr, const Card& card) {
 
 	if (!card._bVisible) {
 
 		ostr << "XX";
 		return ostr;
 	}
+
 	// TODO: FIX
-	const char Values[]{ '0', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K' };
-	const char Suits[]{ 'c', 'd', 'h', 's' };
-	ostr << Values[static_cast<char>(card._value)] << Suits[static_cast<char>(card._suit)];
+	// const char Values[]{ '0', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K' };
+	// const char Suits[]{ 'c', 'd', 'h', 's' };
+
+	ostr << card._value << card._suit;
 	return ostr;
 }
 
@@ -308,7 +354,7 @@ std::ostream& operator<< (std::ostream& ostr, const GenericPlayer& player) {
 		}
 
 		if (player.GetValue() != 0) {
-			std::cout << '(' << player.GetValue() << ')';
+			std::cout << '(' << static_cast<int>(player.GetValue()) << ')';
 		}
 	}
 	else {
@@ -373,6 +419,7 @@ void Deck::AdditionalCards(GenericPlayer& player) {
 
 	while (!player.IsBusted() && player.IsHitting()) {
 		Deal(player);
+		std::cout << player.GetName() << " takes a card.\n";
 		std::cout << player << '\n';
 
 		if (player.IsBusted()) {
@@ -497,8 +544,8 @@ int main() {
 	//	7.2
 	//////////////////////////////////////////
 
-	auto date1 = std::make_unique<Date>(8, 4, 2021);
-	auto date2 = std::make_unique<Date>(21, 10, 2022);
+	auto date1 = std::make_unique<Date>(4, 8, 2021);
+	auto date2 = std::make_unique<Date>(10, 21, 2022);
 
 	std::cout << "Latest date: "	<< *CompareDates(date1, date2)	<< '\n';
 	std::cout << "Date 1 was: "		<< date1						<< '\n';
@@ -513,13 +560,27 @@ int main() {
 	//	Blackjack
 	//////////////////////////////////////////
 
-	std::vector<std::string> players;
-	players.push_back("First Player");
-	players.push_back("Second Player");
-	players.push_back("Third Player");
+	bool NewGame{ true };
 
-	Game game(players);
-	game.Play();
+	while (NewGame) {
+
+		std::vector<std::string>* players = new std::vector<std::string>;
+		players->push_back("First Player");
+		players->push_back("Second Player");
+		players->push_back("Third Player");
+
+		Game* game = new Game(*players);
+		game->Play();
+
+		delete players;
+		delete game;
+
+		NewGame = false;
+		char result;
+		std::cout << "Another round? [Y/N]: ";
+		std::cin >> result;
+		if (result == 'Y' || result == 'y') NewGame = true;
+	}
 
 	return 0;
 }
