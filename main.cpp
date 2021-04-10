@@ -101,12 +101,13 @@ ECardSuit operator++(const ECardSuit& suit) {
 std::ostream& operator<< (std::ostream& ostr, const ECardSuit& suit) {
 
 	char SuitSymbol;
-	switch (suit) {
 
-	case ECardSuit::Clubs:		SuitSymbol = 'C'; break;
-	case ECardSuit::Diamonds:	SuitSymbol = 'D'; break;
-	case ECardSuit::Hearts:		SuitSymbol = 'H'; break;
-	case ECardSuit::Spades:		SuitSymbol = 'S'; break;
+	switch (suit) {
+	// Let's use ASCII codes to draw card suits
+	case ECardSuit::Clubs:		SuitSymbol = 5; break;
+	case ECardSuit::Diamonds:	SuitSymbol = 4; break;
+	case ECardSuit::Hearts:		SuitSymbol = 3; break;
+	case ECardSuit::Spades:		SuitSymbol = 6; break;
 	default:					SuitSymbol = 'X'; break;
 	}
 
@@ -116,10 +117,20 @@ std::ostream& operator<< (std::ostream& ostr, const ECardSuit& suit) {
 
 enum class ECardValue : uint8_t {
 
-	Two = 2U, Three, Four, Five, Six, Seven, Eight, Nine, Ten,
-	Jack = 10U, Queen = 10U, King = 10U, Ace = 1U,
+	Ace = 1U, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten,
+	Jack, Queen, King,
 	Undefined = 0U
 };
+
+uint8_t GetCardScore(const ECardValue& val) {
+
+	switch (val) {
+	case ECardValue::Jack:
+	case ECardValue::Queen:
+	case ECardValue::King: return 10U;
+	default: return static_cast<uint8_t>(val);
+	}
+}
 
 ECardValue operator++(const ECardValue& val) {
 
@@ -134,33 +145,36 @@ ECardValue operator++(const ECardValue& val) {
 	case ECardValue::Eight:		return ECardValue::Nine;
 	case ECardValue::Nine:		return ECardValue::Ten;
 	case ECardValue::Ten:		return ECardValue::Jack;
-	//case ECardValue::Jack:		return ECardValue::Queen;
-	//case ECardValue::Queen:		return ECardValue::King;
-	//case ECardValue::King:		return ECardValue::Ace;
+	case ECardValue::Jack:		return ECardValue::Queen;
+	case ECardValue::Queen:		return ECardValue::King;
+	case ECardValue::King:		return ECardValue::Ace;
 	case ECardValue::Undefined: return ECardValue::Undefined;
 	default:					return ECardValue::Undefined;
 	}
 }
 
 std::ostream& operator<< (std::ostream& ostr, const ECardValue& val) {
-	/*
-	std::string CardValue;
+
+	std::string sCardValue;
 
 	switch (val) {
-	case ECardValue::Ace:	CardValue = 'A'; break;
-	case ECardValue::Two:	CardValue = '2'; break;
-	case ECardValue::Three: CardValue = '3'; break;
-	case ECardValue::Four:	CardValue = '4'; break;
-	case ECardValue::Five:	CardValue = '5'; break;
-	case ECardValue::Six:	CardValue = '6'; break;
-	case ECardValue::Seven: CardValue = '7'; break;
-	case ECardValue::Eight: CardValue = '8'; break;
-	case ECardValue::Nine:	CardValue = '9'; break;
-	case ECardValue::Ten:	CardValue = "10"; break;
-	default:				CardValue = '0'; break;
+	case ECardValue::Ace:	sCardValue = 'A'; break;
+	case ECardValue::Two:	sCardValue = '2'; break;
+	case ECardValue::Three:	sCardValue = '3'; break;
+	case ECardValue::Four:	sCardValue = '4'; break;
+	case ECardValue::Five:	sCardValue = '5'; break;
+	case ECardValue::Six:	sCardValue = '6'; break;
+	case ECardValue::Seven:	sCardValue = '7'; break;
+	case ECardValue::Eight:	sCardValue = '8'; break;
+	case ECardValue::Nine:	sCardValue = '9'; break;
+	case ECardValue::Ten:	sCardValue = "10"; break;
+	case ECardValue::Jack:	sCardValue = 'J'; break;
+	case ECardValue::Queen: sCardValue = 'Q'; break;
+	case ECardValue::King:	sCardValue = 'K'; break;
+	default:				sCardValue = "-1"; break;
 	}
-	*/
-	ostr << static_cast<int>(val);
+
+	ostr << sCardValue;
 	return ostr;
 }
 
@@ -175,6 +189,7 @@ public:
 	Card(ECardSuit suit, ECardValue val) : _suit(suit), _value(val) {}
 
 	ECardValue GetValue() const { return _value; }
+	bool IsVisible() const { return _bVisible; }
 	void Flip() { _bVisible = !_bVisible; }
 
 	friend std::ostream& operator << (std::ostream& ostr, const Card& card);
@@ -204,6 +219,7 @@ public:
 	virtual ~GenericPlayer() override {}
 
 	std::string GetName() const { return _name; }
+	bool HasHiddenCard() const;
 	virtual bool IsHitting() const = 0;
 	bool IsBusted() const { return GetValue() > 21U ? true : false; }
 	void Bust() const { std::cout << _name << " busted!\n"; }
@@ -272,10 +288,6 @@ std::ostream& operator<< (std::ostream& ostr, const Card& card) {
 		return ostr;
 	}
 
-	// TODO: FIX
-	// const char Values[]{ '0', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K' };
-	// const char Suits[]{ 'c', 'd', 'h', 's' };
-
 	ostr << card._value << card._suit;
 	return ostr;
 }
@@ -312,7 +324,7 @@ uint8_t Hand::GetValue() const {
 		if (card->GetValue() == ECardValue::Ace)
 			++AceCount;
 		else
-			result += static_cast<int>(card->GetValue());
+			result += GetCardScore(card->GetValue());
 	}
 
 	// Here we check if one/first of our Aces can be 11
@@ -334,6 +346,11 @@ uint8_t Hand::GetValue() const {
 //	Player methods
 //////////////////////////////////////////
 
+bool GenericPlayer::HasHiddenCard() const {
+
+	return !_hand.at(0)->IsVisible();
+}
+
 bool Player::IsHitting() const {
 
 	std::cout << _name << ", do you want a hit? (Y/N): ";
@@ -354,10 +371,19 @@ std::ostream& operator<< (std::ostream& ostr, const GenericPlayer& player) {
 		}
 
 		if (player.GetValue() != 0) {
-			std::cout << '(' << static_cast<int>(player.GetValue()) << ')';
+
+			if (player.HasHiddenCard()) {
+
+				ostr << "(XX)";
+			}
+			else {
+
+				ostr << '(' << static_cast<int>(player.GetValue()) << ')';
+			}
 		}
 	}
 	else {
+
 		ostr << "<empty>\n";
 	}
 
@@ -380,7 +406,7 @@ void House::FlipFirstCard() {
 		return;
 	}
 
-	_hand[0]->Flip();
+	_hand.at(0)->Flip();
 }
 
 //////////////////////////////////////////
@@ -392,12 +418,9 @@ void Deck::Populate() {
 	Clear();
 
 	for (uint8_t s = static_cast<uint8_t>(ECardSuit::Clubs); s <= static_cast<uint8_t>(ECardSuit::Spades); ++s) {
-		for (uint8_t v = static_cast<uint8_t>(ECardValue::Ace); v <= static_cast<uint8_t>(ECardValue::Ten); ++v) {
+		for (uint8_t v = static_cast<uint8_t>(ECardValue::Ace); v <= static_cast<uint8_t>(ECardValue::King); ++v) {
 			Add(new Card(static_cast<ECardSuit>(s), static_cast<ECardValue>(v)));
 		}
-		Add(new Card(static_cast<ECardSuit>(s), ECardValue::Jack));
-		Add(new Card(static_cast<ECardSuit>(s), ECardValue::Queen));
-		Add(new Card(static_cast<ECardSuit>(s), ECardValue::King));
 	}
 }
 
@@ -555,6 +578,7 @@ int main() {
 
 	std::cout << "Date 1 is: " << date1 << '\n';
 	std::cout << "Date 2 is: " << date2 << '\n';
+	std::cout << '\n';
 
 	//////////////////////////////////////////
 	//	Blackjack
